@@ -1,72 +1,67 @@
-	#include <stdio.h>
-	#include <iostream>
-	#include "opencv2/core/core.hpp"//ÒòÎªÔÚÊôĞÔÖĞÒÑ¾­ÅäÖÃÁËopencvµÈÄ¿Â¼£¬ËùÒÔ°ÑÆäµ±³ÉÁË±¾µØÄ¿Â¼Ò»Ñù
-	#include "opencv2/features2d/features2d.hpp"
-	#include "opencv2/highgui/highgui.hpp"
-	#include "opencv2/nonfree/nonfree.hpp" 
-	#include "windows.h"
-	#include "opencv2/legacy/legacy.hpp"
-	#include <fstream>
-	#include <ios>
-	#include <string>
-	#include <comutil.h>
-	#include <direct.h>  
-	#include <io.h>  
-	#include <windows.h>
-	#include "ximage.h"
+#include <stdio.h>
+#include <iostream>
+#include "opencv2/core/core.hpp"
+#include "opencv2/features2d/features2d.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/nonfree/nonfree.hpp" 
+#include "windows.h"
+#include "opencv2/legacy/legacy.hpp"
+#include <fstream>
+#include <ios>
+#include <string>
+#include <comutil.h>
+#include <direct.h>  
+#include <io.h>  
+#include <windows.h>
+#include "ximage.h"
 
+#define min1(a,b)            (((a) < (b)) ? (a) : (b))
+#define max1(a,b)            (((a) > (b)) ? (a) : (b))
 
-	#define min1(a,b)            (((a) < (b)) ? (a) : (b))
-	#define max1(a,b)            (((a) > (b)) ? (a) : (b))
+int  downScale_qt = 4 ;//qtç•Œé¢é™é‡‡æ ·æ¯”ä¾‹è®¾ç½®ï¼Œè‹¥æœªé€‰æ‹©ï¼Œåˆ™é»˜è®¤ä¸ºä¸é™é‡‡æ ·
+string dir,dir1,dir2,dir3,dir4,dir5;
+string dir_p1,dir_p2;
+string dir_match_line;	//	ä¸¤å¹…å›¾ä¹‹é—´ç”»å‡ºé…å‡†è¿çº¿
+string dir1_down,dir2_down;	//é™é‡‡æ ·å›¾åƒä¿å­˜è·¯å¾„
+double detectorThres1 = NULL;
+double detectorThres2 = NULL;
+double pointFilterThres = 0.52;
+double pyramidTime;
 
+string fileName_txt = "";//å‚æ•°ç»“æœä¿å­˜çš„txtæ–‡ä»¶å
+string combine_name = "";//ç»„åˆç®—æ³•ç»“æœåç§°
 
- 
+//DS2()å‡½æ•°ä¸­ä¼šç”¨åˆ°çš„ä¸€äº›å‚æ•°å˜é‡ç­‰
+int detectorFlag=1;	//æ£€æµ‹å­çš„æ ‡å¿—ä½
+int descriptorFlag=1;	//æè¿°å­çš„æ ‡å¿—ä½
 
-	int  downScale_qt = 4 ;//qt½çÃæ½µ²ÉÑù±ÈÀıÉèÖÃ£¬ÈôÎ´Ñ¡Ôñ£¬ÔòÄ¬ÈÏÎª²»½µ²ÉÑù
-	string dir,dir1,dir2,dir3,dir4,dir5;
-	string dir_p1,dir_p2;
-	string dir_match_line;	//	Á½·ùÍ¼Ö®¼ä»­³öÅä×¼Á¬Ïß
-	string dir1_down,dir2_down;	//½µ²ÉÑùÍ¼Ïñ±£´æÂ·¾¶
-	double detectorThres1 = NULL;
-	double detectorThres2 = NULL;
-	double pointFilterThres = 0.52;
-	double pyramidTime;
+int FeaturePairs=0;	//ç»Ÿè®¡æœ€åæ­£ç¡®åŒ¹é…çš„ç‚¹å¯¹æ•°
+double rmse=0.0;	//DS2å‡½æ•°ä¸­ç»Ÿè®¡ç²¾åº¦
 
-	string fileName_txt = "";//²ÎÊı½á¹û±£´æµÄtxtÎÄ¼şÃû
-	string combine_name = "";//×éºÏËã·¨½á¹ûÃû³Æ
+double t_sj,t_sm,t_rj,t_rm;	//æ£€æµ‹å­æè¿°å­æ—¶é—´
+double t_pt,t_choose,t_H;
+double t_bigline;//å¤§å›¾ç”»æ¡†è®¡æ—¶
+double t_down;//é™é‡‡æ ·è®¡æ—¶
+double t_save;	//ç»Ÿè®¡å¤§å›¾é‡æ„ç”»æ¡†å›¾çš„æ—¶é—´
+double rmse_combine =0.0;
+int pt_s,pt_r,pt_pairs;
+vector<CvMat*> H_2;
 
-	//DS2()º¯ÊıÖĞ»áÓÃµ½µÄÒ»Ğ©²ÎÊı±äÁ¿µÈ
-	int detectorFlag=1;	//¼ì²â×ÓµÄ±êÖ¾Î»
-	int descriptorFlag=1;	//ÃèÊö×ÓµÄ±êÖ¾Î»
-
-	int FeaturePairs=0;	//Í³¼Æ×îºóÕıÈ·Æ¥ÅäµÄµã¶ÔÊı
-	double rmse=0.0;	//DS2º¯ÊıÖĞÍ³¼Æ¾«¶È
-
-	double t_sj,t_sm,t_rj,t_rm;	//¼ì²â×ÓÃèÊö×ÓÊ±¼ä
-	double t_pt,t_choose,t_H;
-	double t_bigline;//´óÍ¼»­¿ò¼ÆÊ±
-	double t_down;//½µ²ÉÑù¼ÆÊ±
-	double t_save;	//Í³¼Æ´óÍ¼ÖØ¹¹»­¿òÍ¼µÄÊ±¼ä
-	double rmse_combine =0.0;
-	int pt_s,pt_r,pt_pairs;
-	vector<CvMat*> H_2;
-
-	double t_combine=0.0;
-	double scale =0.25;
+double t_combine=0.0;
+double scale =0.25;
  
 
 
-	ofstream outfile;	//½«Ò»Ğ©±äÁ¿Êä³öµ½txtÎÄ¼ş
-	vector <IplImage*> datu1;
-	vector<string> lujing;
+ofstream outfile;	//å°†ä¸€äº›å˜é‡è¾“å‡ºåˆ°txtæ–‡ä»¶
+vector <IplImage*> datu1;
+vector<string> lujing;
 
-	//vector<Mat> H1;
-	vector<CvMat*>H2;
-
-	vector<int>ptpairs;
-	vector<IplImage*> img;
-	double t_ceshi;
-	void Combine_Regiatration(string SrcSenImagePath,string SrcReImagePath,int DetectorFlag,int DescriptorFlag,int Threshold1/*,int Threshold2 */);
+//vector<Mat> H1;
+vector<CvMat*>H2;
+vector<int>ptpairs;
+vector<IplImage*> img;
+double t_ceshi;
+void Combine_Regiatration(string SrcSenImagePath,string SrcReImagePath,int DetectorFlag,int DescriptorFlag,int Threshold1/*,int Threshold2 */);
 
 
 void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag,int Threshold1/*,int Threshold2*/)
@@ -75,21 +70,21 @@ void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag
 		 t_ceshi = cvGetTickCount();
 
 		cv::initModule_nonfree();
-		//imgÏòÁ¿£¬ÓÃÀ´±£´æ±¾´ÎÅä×¼ÖĞµÄÍ¼Ïñ
+		//imgå‘é‡ï¼Œç”¨æ¥ä¿å­˜æœ¬æ¬¡é…å‡†ä¸­çš„å›¾åƒ
 	
 
 		IplImage* ip_temp1 =&IplImage(uav);
 		IplImage* img1 = cvCloneImage(ip_temp1);
 		IplImage* ip_temp2 =&IplImage(ref);
 		IplImage* img2 = cvCloneImage(ip_temp2);
-		Ptr<DescriptorMatcher> descriptor_matcher = DescriptorMatcher::create("BruteForce"/*"FlannBased"*/);//´´½¨ÌØÕ÷Æ¥ÅäÆ÷
+		Ptr<DescriptorMatcher> descriptor_matcher = DescriptorMatcher::create("BruteForce"/*"FlannBased"*/);//åˆ›å»ºç‰¹å¾åŒ¹é…å™¨
 
-		//double t =(double)cvGetTickCount(); //Í³¼ÆÅä×¼×ÜÊ±¼ä
+		//double t =(double)cvGetTickCount(); //ç»Ÿè®¡é…å‡†æ€»æ—¶é—´
 	
-		//ÌØÕ÷µã¼ì²â
-		vector <KeyPoint> m_LeftKey,m_RightKey;		//ÌØÕ÷µã
-		Mat descriptors1,descriptors2;							//ÃèÊö×Ó
-		Mat img_m_LeftKey,img_m_RightKey;				//»­³öÌØÕ÷µãµÄÊä³ö½á¹ûÍ¼Ïñ
+		//ç‰¹å¾ç‚¹æ£€æµ‹
+		vector <KeyPoint> m_LeftKey,m_RightKey;		//ç‰¹å¾ç‚¹
+		Mat descriptors1,descriptors2;							//æè¿°å­
+		Mat img_m_LeftKey,img_m_RightKey;				//ç”»å‡ºç‰¹å¾ç‚¹çš„è¾“å‡ºç»“æœå›¾åƒ
 
 		fileName_txt += Int_to_String(Threshold1);
 		fileName_txt += "_";
@@ -245,11 +240,11 @@ void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag
 		pt_s =m_LeftKey.size();
 		pt_r =m_RightKey.size();
 
-		//ÌØÕ÷Æ¥Åä
-		vector<DMatch> matches;//Æ¥Åä½á¹û£¬DMatchÊÇÒ»¸ö½á¹¹Ìå
+		//ç‰¹å¾åŒ¹é…
+		vector<DMatch> matches;//åŒ¹é…ç»“æœï¼ŒDMatchæ˜¯ä¸€ä¸ªç»“æ„ä½“
 	
 		t_pt = cvGetTickCount();
-		descriptor_matcher->match(descriptors1,descriptors2,matches);//Æ¥ÅäÁ½¸öÍ¼ÏñµÄÌØÕ÷¾ØÕó
+		descriptor_matcher->match(descriptors1,descriptors2,matches);//åŒ¹é…ä¸¤ä¸ªå›¾åƒçš„ç‰¹å¾çŸ©é˜µ
 		t_pt = (double)(cvGetTickCount() - t_pt)/(cvGetTickFrequency()*1000.*1000.);
 	
 		t_choose =cvGetTickCount();
@@ -263,12 +258,12 @@ void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag
 			if(dist > max_dist)
 				max_dist = dist;
 		}
-	//ÉèÖÃãĞÖµ£¬É¸Ñ¡½ÏºÃµÄÆ¥Åäµã  
+	//è®¾ç½®é˜ˆå€¼ï¼Œç­›é€‰è¾ƒå¥½çš„åŒ¹é…ç‚¹  
 		vector<DMatch> goodMatches;
 	//	float xishu=0.38;
 		for(int i=0;i<matches.size();i++)
 		{
-			if(matches[i].distance < (pointFilterThres *max_dist))	//ÕâÀïµÄãĞÖµÉèÖÃÒ²ÊÇ±È½ÏÖØÒªµÄ
+			if(matches[i].distance < (pointFilterThres *max_dist))	//è¿™é‡Œçš„é˜ˆå€¼è®¾ç½®ä¹Ÿæ˜¯æ¯”è¾ƒé‡è¦çš„
 		//	if( matches[i].distance <= max(2*min_dist, 0.02) )
 			{
 				goodMatches.push_back(matches[i]);
@@ -277,19 +272,19 @@ void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag
 
 		pt_pairs = goodMatches.size();
 
-		//RANSACÆ¥Åä¹ı³Ì
+		//RANSACåŒ¹é…è¿‡ç¨‹
 		vector<DMatch> m_Matches = goodMatches;
-		//·ÖÅä¿Õ¼ä
-		int ptCount = m_Matches.size();//int ptCount = (int)m_Matches.size()²»ÓÃÕâ¾äÀïµÄÇ¿ÖÆ×ª»»ÊÔÊÔ
-		Mat p1(ptCount,2,CV_32F);//´´½¨Ò»¸öMat½á¹¹£¬µãÊıĞĞ£¬2ÁĞ£¬32Î»¸¡µãĞÍ
+		//åˆ†é…ç©ºé—´
+		int ptCount = m_Matches.size();//int ptCount = (int)m_Matches.size()ä¸ç”¨è¿™å¥é‡Œçš„å¼ºåˆ¶è½¬æ¢è¯•è¯•
+		Mat p1(ptCount,2,CV_32F);//åˆ›å»ºä¸€ä¸ªMatç»“æ„ï¼Œç‚¹æ•°è¡Œï¼Œ2åˆ—ï¼Œ32ä½æµ®ç‚¹å‹
 		Mat p2(ptCount,2,CV_32F);
 
-		//°ÑµÃµ½µÄKeypoint×ª»»ÎªMat
+		//æŠŠå¾—åˆ°çš„Keypointè½¬æ¢ä¸ºMat
 		Point2f pt;
 		for(int i=0;i<m_Matches.size();i++)
 		{
 			pt = m_LeftKey[m_Matches[i].queryIdx].pt;
-			p1.at<float>(i,0) = pt.x;//µÚÒ»ÁĞ±íÊ¾x×ø±ê£»µÚ¶şÁĞ±íÊ¾y£»//µü´úÆ÷£¬atº¯ÊıÓÃÀ´¶ÁÈ¡¾ØÕóÖĞµÄÄ³¸öÏñËØ
+			p1.at<float>(i,0) = pt.x;//ç¬¬ä¸€åˆ—è¡¨ç¤ºxåæ ‡ï¼›ç¬¬äºŒåˆ—è¡¨ç¤ºyï¼›//è¿­ä»£å™¨ï¼Œatå‡½æ•°ç”¨æ¥è¯»å–çŸ©é˜µä¸­çš„æŸä¸ªåƒç´ 
 			p1.at<float>(i,1) = pt.y;
 		
 		
@@ -298,25 +293,25 @@ void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag
 			p2.at<float>(i,1) = pt.y;
 		}
 
-		//ÓÃRANSAC·½·¨¼ÆËãF
-		Mat m_Fundamental;//¼ÆËã»ù±¾¾ØÕó
-		vector<uchar> m_RANSACStatus;//¸Ã±äÁ¿ÓÃÀ´´æ´¢RANSACÖ®ºó£¬Ã¿¸öµãµÄ×´Ì¬
-		findFundamentalMat(p1,p2,m_RANSACStatus,FM_RANSAC);//×îºóÒ»Î»ÊÇ±êÖ¾Î»£¬±íÊ¾Ê¹ÓÃRANSACËã·¨
+		//ç”¨RANSACæ–¹æ³•è®¡ç®—F
+		Mat m_Fundamental;//è®¡ç®—åŸºæœ¬çŸ©é˜µ
+		vector<uchar> m_RANSACStatus;//è¯¥å˜é‡ç”¨æ¥å­˜å‚¨RANSACä¹‹åï¼Œæ¯ä¸ªç‚¹çš„çŠ¶æ€
+		findFundamentalMat(p1,p2,m_RANSACStatus,FM_RANSAC);//æœ€åä¸€ä½æ˜¯æ ‡å¿—ä½ï¼Œè¡¨ç¤ºä½¿ç”¨RANSACç®—æ³•
 
-		//¼ÆËãÒ°µã¸öÊı
+		//è®¡ç®—é‡ç‚¹ä¸ªæ•°
 		int OutlinerCount = 0;
 		for(int i=0;i<m_Matches.size();i++)
 		{
 	
-			if(m_RANSACStatus[i] == 0)			//×´Ì¬Îª0±íÊ¾ÊÇÒ°µã
+			if(m_RANSACStatus[i] == 0)			//çŠ¶æ€ä¸º0è¡¨ç¤ºæ˜¯é‡ç‚¹
 			{
 				OutlinerCount++;
 			}
 		}
 		int InlinerCount = ptCount - OutlinerCount;
-	//	cout<<"ÄÚµã¸öÊıÎª£º"<<InlinerCount<<endl;
+	//	cout<<"å†…ç‚¹ä¸ªæ•°ä¸ºï¼š"<<InlinerCount<<endl;
 	
-		//´´½¨3¸ö±äÁ¿ÓÃÀ´±£´æÄÚµãºÍÆ¥Åä¹ØÏµ
+		//åˆ›å»º3ä¸ªå˜é‡ç”¨æ¥ä¿å­˜å†…ç‚¹å’ŒåŒ¹é…å…³ç³»
 		vector<Point2f> m_LeftInlier;
 		vector<Point2f> m_RightInlier;
 		vector<DMatch> m_InlierMatches;
@@ -328,7 +323,7 @@ void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag
 		for(int i =0;i<ptCount;i++)
 		{
 		
-			if(m_RANSACStatus[i] != 0)	//½«ÕıÈ·Æ¥ÅäµÄµã¸³¸øÄÚµã
+			if(m_RANSACStatus[i] != 0)	//å°†æ­£ç¡®åŒ¹é…çš„ç‚¹èµ‹ç»™å†…ç‚¹
 			{
 				m_LeftInlier[InlinerCount].x = p1.at<float>(i,0);
 				m_LeftInlier[InlinerCount].y = p1.at<float>(i,1);
@@ -338,7 +333,7 @@ void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag
 				m_InlierMatches[InlinerCount].trainIdx = InlinerCount;
 
 				//if(m_RightInlier[InlinerCount].x < inlier_minRx)
-				//	inlier_minRx = m_RightInlier[InlinerCount].x;		//´æ´¢ÄÚµãÖĞÓÒÍ¼µÄ×îĞ¡×ø±ê
+				//	inlier_minRx = m_RightInlier[InlinerCount].x;		//å­˜å‚¨å†…ç‚¹ä¸­å³å›¾çš„æœ€å°åæ ‡
 				InlinerCount++;
 			}
 		}
@@ -346,15 +341,15 @@ void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag
 	t_choose =(double)(cvGetTickCount() - t_choose)/(cvGetTickFrequency()*1000.*1000.);
 	cout<<"t_choose:"<<t_choose<<endl;
 	
-		//¾ØÕóHÓÃÀ´´æ´¢RANSAC±ä»»µÃµ½µÄµ¥Ó¦ĞÔ¾ØÕó
+		//çŸ©é˜µHç”¨æ¥å­˜å‚¨RANSACå˜æ¢å¾—åˆ°çš„å•åº”æ€§çŸ©é˜µ
 
-		/*¼ÆËãH¾ØÕóµÄÊ±¼ä*/
+		/*è®¡ç®—HçŸ©é˜µçš„æ—¶é—´*/
 		t_H =(double)cvGetTickCount();
-		Mat H_h= findHomography(m_LeftInlier,m_RightInlier,CV_RANSAC);	//Ê¹ÓÃÄÚµãÇó½âH
+		Mat H_h= findHomography(m_LeftInlier,m_RightInlier,CV_RANSAC);	//ä½¿ç”¨å†…ç‚¹æ±‚è§£H
 
 		t_H =(double)(cvGetTickCount() - t_H)/(cvGetTickFrequency()*1000.*1000.);
 
-		//Çó¾«¶È³ÌĞò
+		//æ±‚ç²¾åº¦ç¨‹åº
 	
 
 		FeaturePairs = InlinerCount;
@@ -378,9 +373,9 @@ void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag
 		}
 
 			rmse_combine = rmse_combine/InlinerCount;
-		//	cout<<"H¾ØÕó"<<H_h<<endl;
+		//	cout<<"HçŸ©é˜µ"<<H_h<<endl;
 
-			//¼ÆËã½µ²ÉÑùÍ¼µÄH¾ØÕó¡¢Ô­Í¼H±ä»»¾ØÕó
+			//è®¡ç®—é™é‡‡æ ·å›¾çš„HçŸ©é˜µã€åŸå›¾Hå˜æ¢çŸ©é˜µ
 			   double a[9];
 				CvMat* H11;
 				H11 =cvCreateMat(3,3,CV_64FC1);
@@ -391,16 +386,16 @@ void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag
 				scale =cvmGet(H11,0,0);
 				int  downrate = 1 / scale;
 
-			double smallhx,smallhy,ha,hb;///¸Ã²ÎÊı±íÊ¾Á½¸ö²Ã¼ô³öÀ´µÄĞ¡Í¼µÄÆ½ÒÆ²ÎÊı
-			double bighx,bighy;//¸Ã²ÎÊı±íÊ¾´ıÅä×¼Í¼ÏñÏà¶ÔÓÚ²Î¿¼Í¼ÏñµÄÆ½ÒÆ²ÎÊı
+			double smallhx,smallhy,ha,hb;///è¯¥å‚æ•°è¡¨ç¤ºä¸¤ä¸ªè£å‰ªå‡ºæ¥çš„å°å›¾çš„å¹³ç§»å‚æ•°
+			double bighx,bighy;//è¯¥å‚æ•°è¡¨ç¤ºå¾…é…å‡†å›¾åƒç›¸å¯¹äºå‚è€ƒå›¾åƒçš„å¹³ç§»å‚æ•°
 			//px = cvmGet( H, 0, 2 );
 			//py = cvmGet( H, 1, 2 );
-			smallhx = cvmGet( H11, 0, 2 ); //ÕâÀïËã³öµÄÊÇ´ıÅä×¼Í¼ÏñÖĞ¸ĞĞËÈ¤ÇøÓòÏà¶ÔÓÚ²Î¿¼Í¼ÏñµÄÆ½ÒÆ¾àÀë
+			smallhx = cvmGet( H11, 0, 2 ); //è¿™é‡Œç®—å‡ºçš„æ˜¯å¾…é…å‡†å›¾åƒä¸­æ„Ÿå…´è¶£åŒºåŸŸç›¸å¯¹äºå‚è€ƒå›¾åƒçš„å¹³ç§»è·ç¦»
 			smallhy = cvmGet( H11, 1, 2 );
 			ha = cvmGet(H11,2,0);
 			hb = cvmGet(H11,2,1);
 
-			CvMat *H1; //¶¨Òå´óÍ¼Ö®¼äµÄ±ä»»¾ØÕó£¬ÓÈÆäÊÇÆ½ÒÆÁ¿½øĞĞ¸üĞÂ
+			CvMat *H1; //å®šä¹‰å¤§å›¾ä¹‹é—´çš„å˜æ¢çŸ©é˜µï¼Œå°¤å…¶æ˜¯å¹³ç§»é‡è¿›è¡Œæ›´æ–°
 
 			bighx = smallhx * downScale_qt;
 			bighy = smallhy *downScale_qt;
@@ -418,22 +413,22 @@ void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag
 			sfx = cvSqrt(h11*h11+h21*h21);
 			sfy = cvSqrt(h22*h22+h12*h12);
 			rotate = (180*atan(h21/h11))/3.1415926;
-			//cout<<rotate<<"¶È"<<endl;	//Êä³öĞı×ª½Ç¶È¡£µ±Í¼ÏñĞı×ª30¶ÈÖ®ºó£¬SURF-BRISK¼ÆËãµÄ±ä»»¾ØÕó¾ÍÓĞÎÊÌâÁË
+			//cout<<rotate<<"åº¦"<<endl;	//è¾“å‡ºæ—‹è½¬è§’åº¦ã€‚å½“å›¾åƒæ—‹è½¬30åº¦ä¹‹åï¼ŒSURF-BRISKè®¡ç®—çš„å˜æ¢çŸ©é˜µå°±æœ‰é—®é¢˜äº†
 	
-			t_ceshi = (double)(cvGetTickCount() - t_ceshi)/(cvGetTickFrequency()*1000.*1000.);	//µÃµ½´óÍ¼Ö®¼äµÄH¾ØÕó¹ØÏµ£¬Íê³ÉÅä×¼¡£
+			t_ceshi = (double)(cvGetTickCount() - t_ceshi)/(cvGetTickFrequency()*1000.*1000.);	//å¾—åˆ°å¤§å›¾ä¹‹é—´çš„HçŸ©é˜µå…³ç³»ï¼Œå®Œæˆé…å‡†ã€‚
 
-			cout<<"Åä×¼Ê±¼ät_ceshi:"<<t_ceshi<<endl;	//t_ceshi¼ÇÂ¼µÄ¾ÍÊÇ´Ó¿ªÊ¼Åä×¼µ½Çó³ö¹ØÏµ±ä»»¾ØÕóHµÄÊ±¼ä
+			cout<<"é…å‡†æ—¶é—´t_ceshi:"<<t_ceshi<<endl;	//t_ceshiè®°å½•çš„å°±æ˜¯ä»å¼€å§‹é…å‡†åˆ°æ±‚å‡ºå…³ç³»å˜æ¢çŸ©é˜µHçš„æ—¶é—´
 
 		t_save =cvGetTickCount();
 		Mat img1_1,img2_2;
 		string dir_image1 = lujing[1];
 		string dir_image2 = lujing[0];
-		img1_1 =imread(dir_image1);		//1:xiaoÍ¼
-		img2_2 = imread(dir_image2);	//2:daÍ¼
+		img1_1 =imread(dir_image1);		//1:xiaoå›¾
+		img2_2 = imread(dir_image2);	//2:daå›¾
 
 		CvPoint pi11,pi22,pi3,pi4; 
-		//	p22.x=bighx;  p22.y=bighy;	//×óÏÂ½Ç×ø±ê
-		pi22.x = smallhx*downScale_qt;	//downScale_qt:¹Ì¶¨Öµ
+		//	p22.x=bighx;  p22.y=bighy;	//å·¦ä¸‹è§’åæ ‡
+		pi22.x = smallhx*downScale_qt;	//downScale_qt:å›ºå®šå€¼
 		pi22.y = smallhy*downScale_qt;
 		pi11.x=(img1_1.cols)*h11+pi22.x;  pi11.y=h21*(img1_1.cols)+pi22.y; 
 		pi3.x=h12*(img1_1.rows)+pi22.x; pi3.y=h22*(img1_1.rows)+pi22.y; 
@@ -445,7 +440,7 @@ void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag
 		cvLine(ip3,pi3,pi4,CV_RGB(255,0,0),2,CV_AA);
 		cvLine(ip3,pi4,pi11,CV_RGB(255,0,0),2,CV_AA);
 	//	t_bigline = (double)(cvGetTickCount() - t_bigline)/(cvGetTickFrequency()*1000.*1000.);
-	//	cout<<"´óÍ¼»­¿òÊ±¼ä£º"<<t_bigline<<endl;
+	//	cout<<"å¤§å›¾ç”»æ¡†æ—¶é—´ï¼š"<<t_bigline<<endl;
 		Mat resultN(ip3, true);
 	//	imshow("datu",resultN);
 
@@ -456,12 +451,12 @@ void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag
 	
 		imwrite(dir5,resultN);
 		t_save =(double)(cvGetTickCount() - t_save)/(cvGetTickFrequency()*1000.*1000);
-		cout<<"´óÍ¼»­¿ò±£´æÊ±¼ä£º"<<t_save<<endl;
+		cout<<"å¤§å›¾ç”»æ¡†ä¿å­˜æ—¶é—´ï¼š"<<t_save<<endl;
 
 		Mat img_matches;
-			//Ê¹ÓÃºìÉ«Á¬½ÓÆ¥ÅäµÄÌØÕ÷µã¶Ô£¬ÂÌÉ«Î´Æ¥Åäµã¶Ô
+			//ä½¿ç”¨çº¢è‰²è¿æ¥åŒ¹é…çš„ç‰¹å¾ç‚¹å¯¹ï¼Œç»¿è‰²æœªåŒ¹é…ç‚¹å¯¹
 			drawMatches(img1,m_LeftKey,img2,m_RightKey,goodMatches,img_matches,
-					Scalar::all(-1),CV_RGB(0,255,0),Mat(),2);//×îºóÒ»Î»ÊÇ±êÖ¾Î»£¬ÏÔÊ¾»­È¦µÄ´óĞ¡µÈ
+					Scalar::all(-1),CV_RGB(0,255,0),Mat(),2);//æœ€åä¸€ä½æ˜¯æ ‡å¿—ä½ï¼Œæ˜¾ç¤ºç”»åœˆçš„å¤§å°ç­‰
 			imshow("Match_surf",img_matches);
 
 	
@@ -469,32 +464,32 @@ void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag
 	}
 
 
-	int main()
+int main()
 	{
-		//******²âÊÔSURF+BRISK£¨°üº¬½µ²ÉÑù¡¢Åä×¼µÈÊ±¼ä£©
+		//******æµ‹è¯•SURF+BRISKï¼ˆåŒ…å«é™é‡‡æ ·ã€é…å‡†ç­‰æ—¶é—´ï¼‰
 		
-		//1:¶ÔÓ¦´óÍ¼ref£»2:¶ÔÓ¦Ğ¡Í¼uav
+		//1:å¯¹åº”å¤§å›¾refï¼›2:å¯¹åº”å°å›¾uav
 	
 		int th=1000;
 		/*int detectorFlag =1;
 		int descriptorFlag =1;*/
-		dir3 = "e:\\ÕÅÓ¢²âÊÔ±¨¸æ\\0312SURF_BRISK\\1\\";
+		dir3 = "e:\\å¼ è‹±æµ‹è¯•æŠ¥å‘Š\\0312SURF_BRISK\\1\\";
 	
-		dir1 = dir3 + "30002.jpg";	//	´óÍ¼¡¢²Î¿¼Í¼Ïñ
-		dir2 = dir3 + "2.jpg";// Ğ¡Í¼
+		dir1 = dir3 + "30002.jpg";	//	å¤§å›¾ã€å‚è€ƒå›¾åƒ
+		dir2 = dir3 + "2.jpg";// å°å›¾
 		dir_p1 = dir3 + "p1.jpg";
 		dir_p2 = dir3 + "p2.jpg";
 	
-		Mat img1 =imread(dir1);	//´óÍ¼
-		Mat img2 = imread(dir2);	//Ğ¡Í¼
+		Mat img1 =imread(dir1);	//å¤§å›¾
+		Mat img2 = imread(dir2);	//å°å›¾
 		
 		dir1_down = dir3 + "1_4.jpg";
 		dir2_down = dir3 + "2_4.jpg";
 		
-		dir = dir3 + "ResultFiles" ;//Ëã·¨½á¹ûÎÄ¼ş¼Ğ
+		dir = dir3 + "ResultFiles" ;//ç®—æ³•ç»“æœæ–‡ä»¶å¤¹
 	
 		
-		dir_match_line =dir3 + "img_matches.jpg";	//ÏÔÊ¾Á½·ùÍ¼ÏñÁ¬ÏßµÄÆ¥Åä
+		dir_match_line =dir3 + "img_matches.jpg";	//æ˜¾ç¤ºä¸¤å¹…å›¾åƒè¿çº¿çš„åŒ¹é…
 	
 		lujing.push_back(dir1);
 		lujing.push_back(dir2);
@@ -511,7 +506,7 @@ void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag
 		
 	 dir4 = dir  + "\\_";
 		
-		fileName_txt += dir4 ;//½«²ÎÊı½á¹û±£´æÔÚ²Î¿¼Í¼ÏñÎÄ¼ş¼ĞÏÂµÄtxtÎÄµµÖĞ
+		fileName_txt += dir4 ;//å°†å‚æ•°ç»“æœä¿å­˜åœ¨å‚è€ƒå›¾åƒæ–‡ä»¶å¤¹ä¸‹çš„txtæ–‡æ¡£ä¸­
 		fileName_txt += double_to_String(scale);
 		fileName_txt +="_";
 	
@@ -519,44 +514,44 @@ void Combine_RegiatrationMat(Mat uav,Mat ref,int DetectorFlag,int DescriptorFlag
 	
 	
 	
-		Combine_Regiatration(dir2_down,dir1_down,detectorFlag,descriptorFlag,th/*,th2*/);		//Ç°Á½¸ö²ÎÊıÊÇÂ·¾¶
-	//	Combine_RegiatrationMat(img2_down,img1_down,detectorFlag,descriptorFlag,th);			//Ç°Á½¸ö²ÎÊıÊÇMat¸ñÊ½Í¼Ïñ
+		Combine_Regiatration(dir2_down,dir1_down,detectorFlag,descriptorFlag,th/*,th2*/);		//å‰ä¸¤ä¸ªå‚æ•°æ˜¯è·¯å¾„
+	//	Combine_RegiatrationMat(img2_down,img1_down,detectorFlag,descriptorFlag,th);			//å‰ä¸¤ä¸ªå‚æ•°æ˜¯Matæ ¼å¼å›¾åƒ
 	
-	//	SURF_SURF(img2_down,img1_down,th);		//Ö±½ÓÊ¹ÓÃSURF-SURFËã·¨£¬Êµ²ÎÊÇ½µ²ÉÑùÖ®ºóµÄÍ¼Ïñ
-	//	SURF_BRISK(img2_down,img1_down,th,detector,descriptor_extractor);	//Ö±½ÓÓÃSURF-BRISKËã·¨£¬Êµ²ÎÊÇ½µ²ÉÑùÍ¼Ïñ
+	//	SURF_SURF(img2_down,img1_down,th);		//ç›´æ¥ä½¿ç”¨SURF-SURFç®—æ³•ï¼Œå®å‚æ˜¯é™é‡‡æ ·ä¹‹åçš„å›¾åƒ
+	//	SURF_BRISK(img2_down,img1_down,th,detector,descriptor_extractor);	//ç›´æ¥ç”¨SURF-BRISKç®—æ³•ï¼Œå®å‚æ˜¯é™é‡‡æ ·å›¾åƒ
 	//	SurfFeatureDetector detector(th);
 	//	BRISK  descriptor_extractor;
 	//	SurfFeatureDetector descriptor_extractor1;
-	//  SURF_BRISK2(img2,img1,th,detector,descriptor_extractor);	//¼ì²â×Ó¡¢ÃèÊö×ÓµÄ¶¨ÒåÔÚÅä×¼º¯ÊıÍâÃæ£»Êµ²ÎÊÇÔ­Í¼
-	 // SURF_SURF2(img2,img1,th,detector,descriptor_extractor1);
+	//  	SURF_BRISK2(img2,img1,th,detector,descriptor_extractor);	//æ£€æµ‹å­ã€æè¿°å­çš„å®šä¹‰åœ¨é…å‡†å‡½æ•°å¤–é¢ï¼›å®å‚æ˜¯åŸå›¾
+	 //   	SURF_SURF2(img2,img1,th,detector,descriptor_extractor1);
 	
 		ofstream txt_out(fileName_txt.c_str(),ios::app);
 		
-			txt_out << t_sj << endl;		//³¡¾°¼ì²â×ÓÊ±¼ä
-			//QString ReferanceDetectorTime = QString::number(t_rj,'g',6);		//²Î¿¼¼ì²â×ÓÊ±¼ä
-		//	txt_out << t_rj << endl;	//²Î¿¼¼ì²â×ÓÊ±¼ä
-			//QString SceneDescriptorTime = QString::number(t_sm,'g',6);		//³¡¾°ÃèÊö×ÓÊ±¼ä
+			txt_out << t_sj << endl;		//åœºæ™¯æ£€æµ‹å­æ—¶é—´
+			//QString ReferanceDetectorTime = QString::number(t_rj,'g',6);		//å‚è€ƒæ£€æµ‹å­æ—¶é—´
+		//	txt_out << t_rj << endl;	//å‚è€ƒæ£€æµ‹å­æ—¶é—´
+			//QString SceneDescriptorTime = QString::number(t_sm,'g',6);		//åœºæ™¯æè¿°å­æ—¶é—´
 			txt_out << t_sm << endl;
-			//QString referanceDescriptorTime = QString::number(t_rm,'g',6);	//²Î¿¼ÃèÊö×ÓÊ±¼ä
+			//QString referanceDescriptorTime = QString::number(t_rm,'g',6);	//å‚è€ƒæè¿°å­æ—¶é—´
 		//	txt_out << t_rm << endl;
-			//QString DescriptorsMatchTime =QString::number(t_pt,'g',6);		//ÃèÊö×ÓÆ¥ÅäµÄÊ±¼ä
+			//QString DescriptorsMatchTime =QString::number(t_pt,'g',6);		//æè¿°å­åŒ¹é…çš„æ—¶é—´
 			txt_out << t_pt << endl;
-			//QString ScenePoint = QString::number(pt_s,'g',6);						//³¡¾°ÌØÕ÷µãÊı
+			//QString ScenePoint = QString::number(pt_s,'g',6);						//åœºæ™¯ç‰¹å¾ç‚¹æ•°
 			txt_out << pt_s << endl;
-			//QString ReferancePoint = QString::number(pt_r,'g',6);					//²Î¿¼ÌØÕ÷µãÊı
+			//QString ReferancePoint = QString::number(pt_r,'g',6);					//å‚è€ƒç‰¹å¾ç‚¹æ•°
 			txt_out << pt_r << endl;
-			//QString MatchPairs = QString::number(pt_pairs,'g',6);					//ÏµÊıÉ¸Ñ¡µÚÒ»´Î´ÖÆ¥ÅäÌØÕ÷µã¶Ô
+			//QString MatchPairs = QString::number(pt_pairs,'g',6);					//ç³»æ•°ç­›é€‰ç¬¬ä¸€æ¬¡ç²—åŒ¹é…ç‰¹å¾ç‚¹å¯¹
 			txt_out << pt_pairs << endl;
-			//QString MatchChoosePairs = QString::number(FeaturePairs,'g',6);//RANSACÉ¸Ñ¡ºóµÄÌØÕ÷µã¶Ô
+			//QString MatchChoosePairs = QString::number(FeaturePairs,'g',6);//RANSACç­›é€‰åçš„ç‰¹å¾ç‚¹å¯¹
 			txt_out << FeaturePairs << endl;
-			//QString HTime = QString::number(t_H,'g',6);								//¼ÆËãH¾ØÕóµÄÊ±¼ä
+			//QString HTime = QString::number(t_H,'g',6);								//è®¡ç®—HçŸ©é˜µçš„æ—¶é—´
 			txt_out << t_H << endl;
-			//QString CombineTime =QString::number(t_combine,'g',6);			//×éºÏËã·¨×ÜÊ±¼ä
-			//txt_out << t_combine << endl;	//t_combineÔÚSiftTestÏîÄ¿ÖĞ£¬combineº¯ÊıÖĞ°üº¬ÔÚÔ­Í¼ÖĞ»­¿ò¶¨Î»Òª»¨·ÑµÄÊ±¼ä
+			//QString CombineTime =QString::number(t_combine,'g',6);			//ç»„åˆç®—æ³•æ€»æ—¶é—´
+			//txt_out << t_combine << endl;	//t_combineåœ¨SiftTesté¡¹ç›®ä¸­ï¼Œcombineå‡½æ•°ä¸­åŒ…å«åœ¨åŸå›¾ä¸­ç”»æ¡†å®šä½è¦èŠ±è´¹çš„æ—¶é—´
 			
 			txt_out<<t_down<<endl;
 			txt_out<<t_ceshi<<endl;
-			//QString JingDu = QString::number(rmse_combine,'g',6);				//¾«¶È
+			//QString JingDu = QString::number(rmse_combine,'g',6);				//ç²¾åº¦
 		//	txt_out << rmse_combine << endl;
 		//	txt_out<<t_save<<endl;
 	
